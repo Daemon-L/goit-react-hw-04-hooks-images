@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from "react";
 import fetchImages from "./Services/api";
 import Searchbar from './Components/Searchbar/Searchbar';
 import ImageGallery from "./Components/ImageGallery/ImageGallery";
@@ -6,37 +6,25 @@ import LoadMoreButton from "./Components/Button/Button";
 import Modal from './Components/Modal/Modal';
 import Loader from './Components/Loader/Loader';
 
+function App() {
+  const [searchImages, setSearchImages] = useState("");
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [modalImage, setModalImage] = useState("");
+  const [modalAlt, setModalAlt] = useState("");
 
-class App extends Component { 
+  useEffect(() => {
 
-  state = {
-    searchImages: "",
-    images: [],
-    page: 1,
-
-    showModal: false,
-    loading: false,
-
-    modalImage: "",
-    modalAlt: "",         
-  };
-  
-  componentDidUpdate(prevProps, prevState) {
-    if (prevState.searchImages !== this.state.searchImages) {
-      this.setState({ images: [] });
-      this.fetchPictures();
+    if (searchImages === "") {
+      return;
     }
 
-    if (prevState.page !== this.state.page && this.state.page !== 1) {
-      this.fetchPictures();
+    if (page === 1) {
+      setImages([]);
     }
-  };
-
-
-  fetchPictures = () => {
-    const { searchImages, page } = this.state;
-
-    this.setState({ loading: true });
+    setLoading(true);
     
     fetchImages(searchImages, page)
       .then((res) => {
@@ -47,67 +35,56 @@ class App extends Component {
         );
 
         if (images.length === 0) {
-          this.setState({ loading: false });
           alert(`Sorry, nothing found`);
+          setLoading(false);
           return;
         }
 
-        this.setState((prevState) => ({
-          images: [...prevState.images, ...images],
-        }));
-        this.setState({ loading: false });
-      });
+        setImages((prevImages) => [...prevImages, ...images]);
+        setLoading(false);
+      })
+  }, [searchImages, page]);
+
+  const handleFormSubmit = (searchImages) => {
+    setSearchImages(searchImages);
+    setPage(1);
   };
 
-  handleFormSubmit = searchImages => {
-    this.setState({ searchImages, page: 1 });
+  const onLoadMore = () => {
+    setPage((prevPage) => prevPage + 1);
   };
 
-  onLoadMore = () => {
-    this.setState((prevState) => ({
-      page: prevState.page + 1,
-    }));
+  const toggleModal = () => {
+    setShowModal((showModal) => !showModal);
   };
-
-
-  toggleModal = () => {
-    this.setState(({ showModal }) => ({ showModal: !showModal }));
+  const setModal = (largeImageURL, tags ) => {
+    setModalImage(largeImageURL);
+    setModalAlt(tags);
+    toggleModal();
   };
-  setModal = (largeImageURL, tags ) => {
-    this.setState({ modalImage: largeImageURL });
-    this.setState({modalAlt: tags});
-    this.toggleModal();
-  };
+   
+  return (
+    <div>
+      <Searchbar onSubmit={handleFormSubmit} />
 
-  
-  render() {
-    const { images, loading, showModal, modalImage, modalAlt } = this.state;
-    const { handleFormSubmit, onLoadMore, toggleModal, setModal } = this;
-      
-    return (
-      <div>
-        <Searchbar onSubmit={handleFormSubmit} />
+      {images.length > 0 && (
+        <ImageGallery setModal={setModal} images={images} />
+      )}
 
-        {images.length > 0 && (
-          <ImageGallery setModal={setModal} images={images} />
-        )}
+      {loading ?
+        (<Loader/>) :
+        ( images.length > 0 &&
+          images.length % 12 === 0 &&
+          (<LoadMoreButton onClick={onLoadMore} />)
+        )
+      }
 
-        {loading ?
-          // (<p>Загрузка ...</p>) :
-          (<Loader/>) :
-          ( this.state.images.length > 0 &&
-            this.state.images.length % 12 === 0 &&
-            (<LoadMoreButton onClick={onLoadMore} />)
-          )
-        }
-
-        {showModal && (
-          <Modal onClose={toggleModal}>
-            <img src={modalImage} alt={modalAlt} />
-          </Modal>
-        )}
-      </div>
-    );
-  }
+      {showModal && (
+        <Modal onClose={toggleModal}>
+          <img src={modalImage} alt={modalAlt} />
+        </Modal>
+      )}
+    </div>
+  );
 }
 export default App;
